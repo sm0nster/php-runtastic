@@ -33,15 +33,16 @@ class Runtastic
     /**
      * HTTP Responses
      */
-    const HTTP_OK   = 200;
+    const HTTP_OK = 200;
+    const HTTP_unauthorized = 401;
 
     /**
      * Runtastic API Urls
      */
-    const RUNTASTIC_LOGIN_URL           = "https://www.runtastic.com/en/d/users/sign_in.json";
-    const RUNTASTIC_LOGOUT_URL          = "https://www.runtastic.com/en/d/users/sign_out";
-    const RUNTASTIC_SESSIONS_URL        = "https://www.runtastic.com/api/run_sessions/json";
-    const RUNTASTIC_SPORT_SESSIONS_URL  = "https://www.runtastic.com/en/users/%s/sport-sessions";
+    const RUNTASTIC_LOGIN_URL = "https://www.runtastic.com/en/d/users/sign_in.json";
+    const RUNTASTIC_LOGOUT_URL = "https://www.runtastic.com/en/d/users/sign_out";
+    const RUNTASTIC_SESSIONS_URL = "https://www.runtastic.com/api/run_sessions/json";
+    const RUNTASTIC_SPORT_SESSIONS_URL = "https://www.runtastic.com/en/users/%s/sport-sessions";
 
     /**
      * Runtastic Credentials
@@ -63,13 +64,14 @@ class Runtastic
     private $uid;
     private $token;
     private $rawData;
+    private $userData;
 
     /**
      * Other private variables
      */
     private $doc;
-    private $loggedIn  = false;
-    private $timeout   = 10;
+    private $loggedIn = false;
+    private $timeout = 10;
     private $cookieJar = "/tmp/cookiejar";
 
     /**
@@ -174,6 +176,25 @@ class Runtastic
     }
 
     /**
+     * @return mixed
+     */
+    public function getUserData()
+    {
+        return $this->userData;
+    }
+
+    /**
+     * @param mixed $userData
+     * @return Runtastic
+     */
+    public function setUserData($userData)
+    {
+        $this->userData = $userData;
+        return $this;
+    }
+
+
+    /**
      * Get Response Status Code.
      *
      * @return int|null
@@ -240,23 +261,26 @@ class Runtastic
         $this->loggedIn = false;
 
         $postData = [
-            "user[email]"           => $this->loginUsername,
-            "user[password]"        => $this->loginPassword,
-            "authenticity_token"    => $this->token,
+            "user[email]" => $this->loginUsername,
+            "user[password]" => $this->loginPassword,
+            "authenticity_token" => $this->token,
         ];
 
         $responseOutputJson = $this->post(self::RUNTASTIC_LOGIN_URL, $postData);
 
         if ($this->getResponseStatusCode() == self::HTTP_OK) {
+            $this->setUserData($responseOutputJson->current_user);
             $this->setDataFromResponse($responseOutputJson->update);
 
             $frontpageOutput = $this->get(sprintf(self::RUNTASTIC_SPORT_SESSIONS_URL, $this->getUsername()), [], false);
             $this->setDataFromResponse($frontpageOutput);
 
             $this->loggedIn = true;
+        } else if ($this->getResponseStatusCode() == self::HTTP_unauthorized) {
+            throw new BadCredentialsException('Bad credentials');
+        } else {
+            throw new ServerErrorException('Server error, try again later. Error code: ' . $this->getResponseStatusCode());
         }
-
-        return $this->loggedIn;
     }
 
     /**
@@ -271,6 +295,7 @@ class Runtastic
         if ($this->getResponseStatusCode() == self::HTTP_OK) {
             $this->loggedIn = false;
         }
+
     }
 
     /**
@@ -284,9 +309,9 @@ class Runtastic
      * $iWeek and $iMonth can be used together with $iYear. if $iYear is null, the current year will
      * be used for filtering.
      *
-     * @param  int|null $iWeek  Number of the wanted week.
+     * @param  int|null $iWeek Number of the wanted week.
      * @param  int|null $iMonth Number of the requested month.
-     * @param  int|null $iYear  Number of the requested year.
+     * @param  int|null $iYear Number of the requested year.
      * @return bool|mixed
      */
     public function getActivities($iWeek = null, $iMonth = null, $iYear = null)
@@ -319,13 +344,13 @@ class Runtastic
                         $items[] = $item[0];
                     }
                 } elseif (!is_null($iMonth)) { /* Get month statistics */
-                    $tmpDate = $iYear."-".$iMonth."-";
-                    if ($tmpDate."01" <= $item[1] && $tmpDate."31" >= $item[1]) {
+                    $tmpDate = $iYear . "-" . $iMonth . "-";
+                    if ($tmpDate . "01" <= $item[1] && $tmpDate . "31" >= $item[1]) {
                         $items[] = $item[0];
                     }
                 } elseif (!is_null($iYear)) { /* Get year statistics */
-                    $tmpDate = $iYear."-";
-                    if ($tmpDate."01-01" <= $item[1] && $tmpDate."12-31" >= $item[1]) {
+                    $tmpDate = $iYear . "-";
+                    if ($tmpDate . "01-01" <= $item[1] && $tmpDate . "12-31" >= $item[1]) {
                         $items[] = $item[0];
                     }
                 } else { /* Get all statistics */
@@ -337,8 +362,8 @@ class Runtastic
             arsort($items);
 
             $postData = [
-                "user_id"            => $this->getUid(),
-                "items"              => join(',', $items),
+                "user_id" => $this->getUid(),
+                "items" => join(',', $items),
                 "authenticity_token" => $this->getToken(),
             ];
 
@@ -352,7 +377,7 @@ class Runtastic
      * Appends query array onto URL
      *
      * @param  string $url
-     * @param  array  $query
+     * @param  array $query
      * @return string
      */
     protected function parseGet($url, $query)
@@ -360,7 +385,7 @@ class Runtastic
         if (!empty($query)) {
             $append = strpos($url, '?') === false ? '?' : '&';
 
-            return $url.$append.http_build_query($query);
+            return $url . $append . http_build_query($query);
         }
 
         return $url;
@@ -380,25 +405,25 @@ class Runtastic
     /**
      * Makes HTTP Request to the API
      *
-     * @param  string      $url
-     * @param  array       $parameters
+     * @param  string $url
+     * @param  array $parameters
      * @param  string|null $request
-     * @param  bool        $json
+     * @param  bool $json
      * @return object|null
      */
     protected function request($url, $parameters = [], $request = null, $json = true)
     {
-        $this->lastRequest     = $url;
+        $this->lastRequest = $url;
         $this->lastRequestData = $parameters;
 
         $curl = curl_init($url);
 
         $curlOptions = array(
-            CURLOPT_URL             => $url,
-            CURLOPT_RETURNTRANSFER  => true,
-            CURLOPT_COOKIEFILE      => $this->cookieJar,
-            CURLOPT_COOKIEJAR       => $this->cookieJar,
-            CURLOPT_TIMEOUT         => $this->timeout,
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_COOKIEFILE => $this->cookieJar,
+            CURLOPT_COOKIEJAR => $this->cookieJar,
+            CURLOPT_TIMEOUT => $this->timeout,
         );
 
         if (!empty($parameters) || !empty($request)) {
@@ -424,8 +449,8 @@ class Runtastic
      * Sends GET request to specified API endpoint
      *
      * @param  string $request
-     * @param  array  $parameters
-     * @param  bool   $json
+     * @param  array $parameters
+     * @param  bool $json
      * @return string
      */
     public function get($request, $parameters = [], $json = true)
@@ -439,8 +464,8 @@ class Runtastic
      * Sends PUT request to specified API endpoint
      *
      * @param  string $request
-     * @param  array  $parameters
-     * @param  bool   $json
+     * @param  array $parameters
+     * @param  bool $json
      * @return string
      */
     public function put($request, $parameters = [], $json = true)
@@ -452,8 +477,8 @@ class Runtastic
      * Sends POST request to specified API endpoint
      *
      * @param  string $request
-     * @param  array  $parameters
-     * @param  bool   $json
+     * @param  array $parameters
+     * @param  bool $json
      * @return string
      */
     public function post($request, $parameters = [], $json = true)
@@ -465,8 +490,8 @@ class Runtastic
      * Sends DELETE request to specified API endpoint
      *
      * @param  string $request
-     * @param  array  $parameters
-     * @param  bool   $json
+     * @param  array $parameters
+     * @param  bool $json
      * @return string
      */
     public function delete($request, $parameters = [], $json = true)

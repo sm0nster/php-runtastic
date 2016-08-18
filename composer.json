@@ -1,13 +1,17 @@
 {
-  "name": "timoschlueter/php-runtastic",
-  "version": "3",
+  "name": "sm0nster/php-runtastic",
+  "version": "1.0",
   "description": "It is a class to gain easy access to Runtastic (www.runtastic.com) activity data via PHP. This is a very dirty approach since Runtastic doesn't offer an official API.",
-  "keywords": ["runtastic", "api", "workouts", "sports"],
+  "keywords": ["php", "runtastic", "api", "workouts", "sports"],
   "license": "MIT",
   "authors": [
     {
       "name": "Timo Schlueter",
       "email": "timo.schlueter@me.com"
+    },
+    {
+      "name": "Marcin Szymański",
+      "email": "szymanskim92@gmail.com"
     },
     {
       "name": "Manuel Garcia",
