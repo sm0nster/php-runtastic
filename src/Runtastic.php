@@ -219,6 +219,9 @@ class Runtastic
      */
     private function setDataFromResponse($response)
     {
+        if(!$response){
+            throw new ServerErrorException('Empty response string');
+        }
         $this->doc->loadHTML($response);
 
         $inputTags = $this->doc->getElementsByTagName('input');
@@ -325,6 +328,9 @@ class Runtastic
         if ($this->loggedIn) {
             preg_match("/var index_data = (.*)\;/", $this->rawData, $matches);
             $itemJsonData = json_decode($matches[1]);
+            if(!is_array($itemJsonData)){
+                return false;
+            }
             $items = [];
 
             // Complete $iMonth with leading zeros
@@ -368,6 +374,10 @@ class Runtastic
             ];
 
             $response = $this->post(self::RUNTASTIC_SESSIONS_URL, $postData);
+        }
+
+        if (!$response) {
+            return false;
         }
 
         return new RuntasticActivityList($response);

@@ -1,6 +1,6 @@
 {
   "name": "sm0nster/php-runtastic",
-  "version": "1.0",
+  "version": "1.0.1",
   "description": "It is a class to gain easy access to Runtastic (www.runtastic.com) activity data via PHP. This is a very dirty approach since Runtastic doesn't offer an official API.",
   "keywords": ["php", "runtastic", "api", "workouts", "sports"],
   "license": "MIT",
