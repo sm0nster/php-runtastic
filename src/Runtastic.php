@@ -35,6 +35,7 @@ class Runtastic
      */
     const HTTP_OK = 200;
     const HTTP_unauthorized = 401;
+    const HTTP_found_and_redirect = 302;
 
     /**
      * Runtastic API Urls
@@ -219,7 +220,7 @@ class Runtastic
      */
     private function setDataFromResponse($response)
     {
-        if(!$response){
+        if (!$response) {
             throw new ServerErrorException('Empty response string');
         }
         $this->doc->loadHTML($response);
@@ -259,7 +260,7 @@ class Runtastic
      *
      * @return bool
      */
-    public function login()
+    public function login($tryCounter = 0)
     {
         $this->loggedIn = false;
 
@@ -281,8 +282,12 @@ class Runtastic
             $this->loggedIn = true;
         } else if ($this->getResponseStatusCode() == self::HTTP_unauthorized) {
             throw new BadCredentialsException('Bad credentials');
+        } else if ($this->getResponseStatusCode() == self::HTTP_found_and_redirect && $tryCounter < 3) {
+            $tryCounter++;
+            $this->logout();
+            $this->login($tryCounter);
         } else {
-            throw new ServerErrorException('Server error, try again later. Error code: ' . $this->getResponseStatusCode() . ' Response: ' . json_encode($responseOutputJson));
+            throw new ServerErrorException('Server error, try again later. Response code: ' . $this->getResponseStatusCode() . ' Response: ' . json_encode($responseOutputJson));
         }
     }
 
@@ -328,7 +333,7 @@ class Runtastic
         if ($this->loggedIn) {
             preg_match("/var index_data = (.*)\;/", $this->rawData, $matches);
             $itemJsonData = json_decode($matches[1]);
-            if(!is_array($itemJsonData)){
+            if (!is_array($itemJsonData)) {
                 return false;
             }
             $items = [];
