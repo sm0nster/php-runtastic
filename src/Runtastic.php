@@ -282,7 +282,7 @@ class Runtastic
         } else if ($this->getResponseStatusCode() == self::HTTP_unauthorized) {
             throw new BadCredentialsException('Bad credentials');
         } else {
-            throw new ServerErrorException('Server error, try again later. Error code: ' . $this->getResponseStatusCode());
+            throw new ServerErrorException('Server error, try again later. Error code: ' . $this->getResponseStatusCode() . ' Response: ' . json_encode($responseOutputJson));
         }
     }
 
